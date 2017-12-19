@@ -1,53 +1,15 @@
 #!/usr/bin/env php
 <?php
 
-// Root from which to refer to src/
-if (!defined('PACKAGE_ROOT')) {
-	define('PACKAGE_ROOT', dirname(dirname(__FILE__)) . '/');
-}
+require 'vendor/autoload.php';
 
-// We only need composer once
-if (!defined('SSPAK_COMPOSER_INSTALL') || !SSPAK_COMPOSER_INSTALL) {
-	require_once PACKAGE_ROOT . 'vendor/autoload.php';
-}
+use SilverStripe\SSPak\Console\Application;
+use SilverStripe\SSPak\Console\Command\SaveCommand;
 
-require_once PACKAGE_ROOT . 'src/Args.php';
-require_once PACKAGE_ROOT . 'src/Executor.php';
-require_once PACKAGE_ROOT . 'src/SSPak.php';
-require_once PACKAGE_ROOT . 'src/FilesystemEntity.php';
-require_once PACKAGE_ROOT . 'src/SSPakFile.php';
-require_once PACKAGE_ROOT . 'src/Webroot.php';
+$application = new Application();
+$application->setBasePath(dirname(dirname(__FILE__)));
 
-$argObj = new Args($_SERVER['argv']);
-/*
-// Special case for self-extracting sspaks
-if($isSelfExtracting) {
-	$argObj->unshiftUnnamed('@self');
-	if(!in_array($argObj->getAction(), array("install", "load"))) {
-		echo "Self-extracting sspaks can only use 'install' and 'load' actions.\n";
-		exit(3);
-	}
-}
-*/
+// ... register commands
+$application->add(new SaveCommand());
 
-$ssPak = new SSPak(new Executor);
-
-$allowedActions = $ssPak->getActions();
-
-// Action dispatch - one class per action
-$action = strtolower($argObj->getAction());
-if(!$action) $action = 'help';
-
-if(isset($allowedActions[$action])) {
-	$method = $allowedActions[$action]['method'];
-	try {
-		$ssPak->$method($argObj);
-	} catch(Exception $e) {
-		echo $e->getMessage() . "\n";
-		exit(4);
-	}
-} else {
-	echo "Unrecognised action '" . $action . "'.\n";
-	$ssPak->help($argObj);
-	exit(3);
-}
+$application->run();

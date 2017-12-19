@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+// turn off all errors as they will pollute the output of this script
+error_reporting(0);
+
 /**
  * SSPak Sniffer
  * Extract database and assets information from a SilverStripe site.
@@ -16,7 +19,7 @@ $basePath = $_SERVER['argv'][1];
 if($basePath[0] != '/') $basePath = getcwd() . '/' . $basePath;
 
 // SilverStripe bootstrap
-define('BASE_PATH', $basePath);
+define('BASE_PATH', realpath($basePath));
 if (!defined('BASE_URL')) {
 	define('BASE_URL', '/');
 }
@@ -29,10 +32,26 @@ if(file_exists(BASE_PATH.'/sapphire/core/Core.php')) {
 } else if(file_exists(BASE_PATH.'/framework/core/Core.php')) {
 	//SS 3.x
 	require_once(BASE_PATH. '/framework/core/Core.php');
-} else if(file_exists(BASE_PATH.'/framework/src/Core/Core.php')) {
+} else if(file_exists(BASE_PATH.'/vendor/silverstripe/framework/src/Core/Kernel.php')) {
 	//SS 4.x
 	require_once(BASE_PATH. '/vendor/autoload.php');
-	require_once(BASE_PATH. '/framework/src/Core/Core.php');
+	$request = SilverStripe\Control\HTTPRequestBuilder::createFromVariables(array(
+	    '_SERVER' => array(
+	        'REQUEST_URI' => 'http://localhost/',
+	        'REQUEST_METHOD' => 'GET',
+	    ),
+	    '_GET' => array(),
+	    '_POST' => array(),
+	), '');
+	$kernel = new SilverStripe\Core\CoreKernel(BASE_PATH);
+	//boot the parts of the kernel to
+	foreach (array('bootDatabaseEnvVars', 'bootDatabaseGlobals') as $bootMethod) {
+	    $reflectedBootMethod = new ReflectionMethod($kernel, $bootMethod);
+        $reflectedBootMethod->setAccessible(true);
+        $reflectedBootMethod->invoke($kernel);
+    }
+    $databaseConfig = SilverStripe\ORM\DB::getConfig();
+
 } else {
 	echo "Couldn't locate framework's Core.php. Perhaps " . BASE_PATH . " is not a SilverStripe project?\n";
 	exit(2);
